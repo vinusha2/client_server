@@ -1,6 +1,7 @@
 # Import socket module
 import os
 import time
+import psutil
 import socket
 import logging
 import datetime, threading
@@ -10,9 +11,9 @@ from threading import Thread
 from file_rotation_handler import SizedRotatingFileHandler
 
 # log file names
-DATA_FILE_PATH = r'C:\Users\vinusha\PycharmProjects\solidfire\datafiles'
-SOURCE_DATA_FILE_PATH = DATA_FILE_PATH + '\CAvideos.csv'
-DEST_DATA_FILE_PATH = DATA_FILE_PATH + '\dest_CAvideos.csv'
+DATA_FILE_PATH = r'/home/onworks/solidfire/datafiles'
+SOURCE_DATA_FILE_PATH = DATA_FILE_PATH + '/CAvideos.csv'
+DEST_DATA_FILE_PATH = DATA_FILE_PATH + '/dest_CAvideos.csv'
 CLIENT_LOG = 'client_a.log'
 
 # setting up max_bytes to 12 MB
@@ -87,13 +88,20 @@ class Client_a():
 		self.logger.info('Received from the server : {}'.format(
 			str(data.decode('ascii'))))
 
-	def get_cpu_memory_info(self):
+	def send_thread_cpu_memory_info(self):
 		# getting the performance info
-		performance_dict = {};#dict(psutil.virtual_memory()._asdict())
+		performance_dict = {};
 		# gives a single float value
-		performance_dict['cpu_used'] = {};#psutil.cpu_percent()
+		data_thread = Thread(target=self.sized_rotating_filehandler)
+		data_thread.start()
+		thread_id = data_thread.ident
+		clk_id = time.pthread_getcpuclockid(thread_id)
+		print(data_thread, type(data_thread), time.clock_gettime(clk_id))
+		performance_dict['cpu_used'] = time.clock_gettime(clk_id)
 		self.logger.info(performance_dict)
-		return str(performance_dict)
+		self.send_data_to_server(performance_dict)
+		threading.Timer(4, self.send_thread_cpu_memory_info).start()
+	
 
 	def ping_heartbeat_details(self):
 		rep = os.system("ping " + self.host_ip)
@@ -102,7 +110,7 @@ class Client_a():
 		else:
 			message = 'server is down'
 		self.send_data_to_server(message)
-		threading.Timer(10, self.ping_heartbeat_details).start()
+		threading.Timer(2, self.ping_heartbeat_details).start()
 
 	def close_connection(self):
 		# close the connection
@@ -112,22 +120,8 @@ class Client_a():
 if __name__ == '__main__':
 	client = Client_a()
 	client.create_socket_connection()
-	message = client.get_cpu_memory_info()
-	data_thread = Thread(target=client.sized_rotating_filehandler)
-	data_thread.start()
 	client.ping_heartbeat_details()
-	thread_id = data_thread.ident
-	clk_id = time.get_clock_info(data_thread.name)
-	print(data_thread, type(data_thread), time.clock_gettime(clk_id))
-	def send_perf_info():
-		job_thread_1 = Thread(target=client.send_data_to_server, args=(message,))
-		job_thread_1.start()
-		threading.Timer(10, send_perf_info).start()
-
-
-
-
-	send_perf_info()
+	client.send_thread_cpu_memory_info()
 	time_check = datetime.datetime.now()
 	while True:
 		time.sleep(5)
