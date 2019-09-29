@@ -100,7 +100,7 @@ class Client_a():
 		performance_dict['cpu_used'] = time.clock_gettime(clk_id)
 		self.logger.info(performance_dict)
 		self.send_data_to_server(performance_dict)
-		threading.Timer(4, self.send_thread_cpu_memory_info).start()
+		threading.Timer(10, self.send_thread_cpu_memory_info).start()
 	
 
 	def ping_heartbeat_details(self):
@@ -110,7 +110,7 @@ class Client_a():
 		else:
 			message = 'server is down'
 		self.send_data_to_server(message)
-		threading.Timer(2, self.ping_heartbeat_details).start()
+		threading.Timer(5, self.ping_heartbeat_details).start()
 
 	def close_connection(self):
 		# close the connection
